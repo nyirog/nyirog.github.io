@@ -1,5 +1,8 @@
 Title: Argparse default trick
+Author: Nyirő, Gergő
+Summary: Simple argparse extension with inspect.signature
 Date: 2021-01-03T12:00:00
+Tags: Python, argparse
 Category: Python
 
 At work we have a repetitive job to create small helper scripts for our
