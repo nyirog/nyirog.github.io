@@ -13,13 +13,75 @@
                 <h1><a href="https://nyiro.name/">nyirog</a></h1>
                 <nav><ul>
                     <li><a href="https://nyiro.name/pages/projects.html">Projects</a></li>
+                    <li><a href="https://nyiro.name/category/dbus.html">dbus</a></li>
                     <li><a href="https://nyiro.name/category/python.html">Python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://nyiro.name/argparse-default-trick.html">Argparse default trick</a></h1>
+                    <h1 class="entry-title"><a href="https://nyiro.name/discover-dbus.html">Discover dbus</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2021-01-05T21:00:00+01:00">
+                Published: Tue 05 January 2021
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://nyiro.name/author/nyiro-gergo.html">Nyirő, Gergő</a>
+        </address>
+<p>In <a href="https://nyiro.name/category/dbus.html">dbus</a>.</p>
+
+</footer><!-- /.post-info --><p>I'm no expert in this subject by any means just read some tutorial about dbus
+so I thought I could summarize them for other beginners like me.</p>
+<h1>List connections</h1>
+<p>Let see who is listening on the session bus:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+   array [
+      string &quot;org.freedesktop.DBus&quot;
+      string &quot;:1.403&quot;
+      string &quot;org.freedesktop.Notifications&quot;
+      string &quot;:1.405&quot;
+      string &quot;org.freedesktop.portal.Desktop&quot;
+      string &quot;org.freedesktop.systemd1&quot;
+      string &quot;:1.408&quot;
+      string &quot;org.pulseaudio.Server&quot;
+      ...
+   ]
+</code></pre></div>
+
+
+<p>This command requires some explanations. <code>dbus-send</code> call the <code>ListNames</code> method of
+<code>/org/freedesktop/DBus</code> object at the <code>org.freedesktop.DBus</code> address. The <code>ListNames</code>
+method is defined in the <code>org.freedesktop.DBus</code> interface. The <code>org.freedesktop.DBus</code>
+seems quite repetative.</p>
+<p>The reply is the list of bus names on the session bus. You can see two kind of
+bus names: unique name (:1.403) and well known name (org.pulseaudio.Server).
+All the bus clients has a uniq name but they can require well known name, too.
+System services and managed services usually has well known name for easier access.</p>
+<p>There are two reasons why <code>org.freedesktop.DBus</code> is so repetative in our example: unique
+names and global interfaces.</p>
+<h2>Address</h2>
+<p>Dbus use the unique name in the protocol the well known name is only a helping
+mechanism for the coordination of dbus services.</p>
+<h2>Object</h2>
+<p>However the name of the object can be used in match filters so it should be uniq.</p>
+<h2>Interface</h2>
+<p>The interfaces meant to be global and reusable therefore they should be uniq too.
+There standard interfaces which are implemented by all of the client.</p>                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://nyiro.name/argparse-default-trick.html" rel="bookmark"
+                           title="Permalink to Argparse default trick">Argparse default trick</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2021-01-03T12:00:00+01:00">
                 Published: Sun 03 January 2021
@@ -30,188 +92,12 @@
         </address>
 <p>In <a href="https://nyiro.name/category/python.html">Python</a>.</p>
 <p>tags: <a href="https://nyiro.name/tag/python.html">Python</a> <a href="https://nyiro.name/tag/argparse.html">argparse</a> </p>
-</footer><!-- /.post-info --><p>At work we have a repetitive job to create small helper scripts for our
-internal services. Most of them are simple xmlrpc client which expose only a
-couple of methods and the methods have zero or one parameter. This minimalist
-requirements can be implemented with standard python libraries.</p>
-<h1>argparse subparsers</h1>
-<p>The <code>add_subparsers</code> method of <code>ArgumentParser</code> can be used to select the xmlrpc
-method:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">argparse</span>
-<span class="kn">import</span> <span class="nn">xmlrpc.client</span>
-
-<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
-<span class="n">sub_parsers</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">(</span><span class="n">dest</span><span class="o">=</span><span class="s2">&quot;command&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="n">sub_parsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;list&quot;</span><span class="p">)</span>
-
-<span class="n">get_parser</span> <span class="o">=</span> <span class="n">sub_parsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;get&quot;</span><span class="p">)</span>
-<span class="n">get_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
-
-<span class="n">client</span> <span class="o">=</span> <span class="n">xmlrpc</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ServerProxy</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:1234&quot;</span><span class="p">)</span>
-<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
-
-<span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">command</span> <span class="o">==</span> <span class="s2">&quot;list&quot;</span><span class="p">:</span>
-    <span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
-<span class="k">elif</span> <span class="n">args</span><span class="o">.</span><span class="n">command</span> <span class="o">==</span> <span class="s2">&quot;get&quot;</span><span class="p">:</span>
-    <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-</code></pre></div>
-
-
-<p>and <code>argparse</code> will generate the usual interactive help for our client:</p>
-<div class="highlight"><pre><span></span><code>usage: client.py [-h] {list,get} ...
-
-positional arguments:
-  {list,get}
-
-optional arguments:
-  -h, --help  show this help message and exit
-</code></pre></div>
-
-
-<div class="highlight"><pre><span></span><code>usage: client.py get [-h] id
-
-positional arguments:
-  id
-
-optional arguments:
-  -h, --help  show this help message and exit
-</code></pre></div>
-
-
-<h1>set_defaults</h1>
-<p>This is nice, but it would better if the function call and the argument
-definition would be closer. The <code>set_defaults</code> method can help to register our
-xmlrpc call into the parsed args:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">argparse</span>
-<span class="kn">import</span> <span class="nn">xmlrpc.client</span>
-
-<span class="n">client</span> <span class="o">=</span> <span class="n">xmlrpc</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ServerProxy</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:1234&quot;</span><span class="p">)</span>
-
-<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
-<span class="n">sub_parsers</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">(</span><span class="n">dest</span><span class="o">=</span><span class="s2">&quot;command&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="n">list_parser</span> <span class="o">=</span> <span class="n">sub_parsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;list&quot;</span><span class="p">)</span>
-<span class="n">list_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">())</span>
-
-<span class="n">get_parser</span> <span class="o">=</span> <span class="n">sub_parsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;get&quot;</span><span class="p">)</span>
-<span class="n">get_parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
-<span class="n">get_parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="k">lambda</span> <span class="n">args</span><span class="p">:</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
-
-<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
-<span class="n">args</span><span class="o">.</span><span class="n">action</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-</code></pre></div>
-
-
-<h1>argparse_action</h1>
-<p>It's more compact but not so pythonic. The code would be more readable if the
-argument definition would be created from the function signature not the other
-way around. The <code>inspect.signature</code> can help us to create a helper module
-(<code>argparse_action</code>) for this:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">inspect</span>
-
-<span class="k">def</span> <span class="nf">add_action</span><span class="p">(</span><span class="n">sub_parsers</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
-    <span class="n">parser</span> <span class="o">=</span> <span class="n">sub_parsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
-    <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
-        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">action</span><span class="p">(</span><span class="n">cli_args</span><span class="p">):</span>
-        <span class="n">func_args</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">cli_args</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">func_args</span><span class="p">)</span>
-
-    <span class="n">parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="n">action</span><span class="p">)</span>
-</code></pre></div>
-
-
-<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">argparse</span>
-<span class="kn">import</span> <span class="nn">xmlrpc.client</span>
-
-<span class="kn">from</span> <span class="nn">argparse_action</span> <span class="kn">import</span> <span class="n">add_action</span>
-
-
-<span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
-    <span class="n">client</span> <span class="o">=</span> <span class="n">_connect</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">list</span><span class="p">():</span>
-    <span class="n">client</span> <span class="o">=</span> <span class="n">_connect</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
-
-<span class="k">def</span> <span class="nf">_connect</span><span class="p">():</span>
-    <span class="k">return</span> <span class="n">xmlrpc</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ServerProxy</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:1234&quot;</span><span class="p">)</span>
-
-
-<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
-<span class="n">sub_parsers</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">(</span><span class="n">dest</span><span class="o">=</span><span class="s2">&quot;command&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">add_action</span><span class="p">(</span><span class="n">sub_parsers</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
-<span class="n">add_action</span><span class="p">(</span><span class="n">sub_parsers</span><span class="p">,</span> <span class="n">get</span><span class="p">)</span>
-
-<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
-<span class="n">args</span><span class="o">.</span><span class="n">action</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-</code></pre></div>
-
-
-<h1>action.add decorator</h1>
-<p>It is more readable but we cannot see easily which function is exposed to CLI.
-A decoration could help:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">inspect</span>
-
-
-<span class="k">class</span> <span class="nc">Action</span><span class="p">:</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pasrer</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_parsers</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">(</span><span class="n">dest</span><span class="o">=</span><span class="s2">&quot;command&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
-        <span class="n">parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">add_action</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">add_action</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
-    <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
-        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">action</span><span class="p">(</span><span class="n">cli_args</span><span class="p">):</span>
-        <span class="n">func_args</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">cli_args</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">func_args</span><span class="p">)</span>
-
-    <span class="n">parser</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="n">action</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">action</span>
-</code></pre></div>
-
-
-<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">argparse</span>
-<span class="kn">import</span> <span class="nn">xmlrpc.client</span>
-
-<span class="kn">from</span> <span class="nn">argparse_action</span> <span class="kn">import</span> <span class="n">add_action</span>
-
-<span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
-<span class="n">action</span> <span class="o">=</span> <span class="n">Action</span><span class="p">(</span><span class="n">parser</span><span class="p">)</span>
-
-
-<span class="nd">@action</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
-    <span class="n">client</span> <span class="o">=</span> <span class="n">_connect</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
-
-<span class="nd">@action</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">list</span><span class="p">():</span>
-    <span class="n">client</span> <span class="o">=</span> <span class="n">_connect</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
-
-<span class="k">def</span> <span class="nf">_connect</span><span class="p">():</span>
-    <span class="k">return</span> <span class="n">xmlrpc</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">ServerProxy</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:1234&quot;</span><span class="p">)</span>
-
-<span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
-<span class="n">args</span><span class="o">.</span><span class="n">action</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-</code></pre></div>
-
-
-<p>The <a href="https://pypi.org/project/argparse-action/">argparse_action</a> is published
-to <a href="https://pypi.org/">pypi</a> so you can try the its other features.</p>                </article>
-            </aside><!-- /#featured -->
+</footer><!-- /.post-info -->                <p>Simple argparse extension with inspect.signature</p>
+                <a class="readmore" href="https://nyiro.name/argparse-default-trick.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+                </ol><!-- /#posts-list -->
+                </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>

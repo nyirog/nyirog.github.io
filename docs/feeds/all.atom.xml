@@ -1,5 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>nyirog</title><link href="https://nyiro.name/" rel="alternate"></link><link href="https://nyiro.name/feeds/all.atom.xml" rel="self"></link><id>https://nyiro.name/</id><updated>2021-01-03T12:00:00+01:00</updated><entry><title>Argparse default trick</title><link href="https://nyiro.name/argparse-default-trick.html" rel="alternate"></link><published>2021-01-03T12:00:00+01:00</published><updated>2021-01-03T12:00:00+01:00</updated><author><name>Nyirő, Gergő</name></author><id>tag:nyiro.name,2021-01-03:/argparse-default-trick.html</id><summary type="html">&lt;p&gt;Simple argparse extension with inspect.signature&lt;/p&gt;</summary><content type="html">&lt;p&gt;At work we have a repetitive job to create small helper scripts for our
+<feed xmlns="http://www.w3.org/2005/Atom"><title>nyirog</title><link href="https://nyiro.name/" rel="alternate"></link><link href="https://nyiro.name/feeds/all.atom.xml" rel="self"></link><id>https://nyiro.name/</id><updated>2021-01-05T21:00:00+01:00</updated><entry><title>Discover dbus</title><link href="https://nyiro.name/discover-dbus.html" rel="alternate"></link><published>2021-01-05T21:00:00+01:00</published><updated>2021-01-05T21:00:00+01:00</updated><author><name>Nyirő, Gergő</name></author><id>tag:nyiro.name,2021-01-05:/discover-dbus.html</id><summary type="html">&lt;p&gt;Compare dbus services to REST APIs&lt;/p&gt;</summary><content type="html">&lt;p&gt;I'm no expert in this subject by any means just read some tutorial about dbus
+so I thought I could summarize them for other beginners like me.&lt;/p&gt;
+&lt;h1&gt;List connections&lt;/h1&gt;
+&lt;p&gt;Let see who is listening on the session bus:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+   array [
+      string &amp;quot;org.freedesktop.DBus&amp;quot;
+      string &amp;quot;:1.403&amp;quot;
+      string &amp;quot;org.freedesktop.Notifications&amp;quot;
+      string &amp;quot;:1.405&amp;quot;
+      string &amp;quot;org.freedesktop.portal.Desktop&amp;quot;
+      string &amp;quot;org.freedesktop.systemd1&amp;quot;
+      string &amp;quot;:1.408&amp;quot;
+      string &amp;quot;org.pulseaudio.Server&amp;quot;
+      ...
+   ]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This command requires some explanations. &lt;code&gt;dbus-send&lt;/code&gt; call the &lt;code&gt;ListNames&lt;/code&gt; method of
+&lt;code&gt;/org/freedesktop/DBus&lt;/code&gt; object at the &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; address. The &lt;code&gt;ListNames&lt;/code&gt;
+method is defined in the &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; interface. The &lt;code&gt;org.freedesktop.DBus&lt;/code&gt;
+seems quite repetative.&lt;/p&gt;
+&lt;p&gt;The reply is the list of bus names on the session bus. You can see two kind of
+bus names: unique name (:1.403) and well known name (org.pulseaudio.Server).
+All the bus clients has a uniq name but they can require well known name, too.
+System services and managed services usually has well known name for easier access.&lt;/p&gt;
+&lt;p&gt;There are two reasons why &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; is so repetative in our example: unique
+names and global interfaces.&lt;/p&gt;
+&lt;h2&gt;Address&lt;/h2&gt;
+&lt;p&gt;Dbus use the unique name in the protocol the well known name is only a helping
+mechanism for the coordination of dbus services.&lt;/p&gt;
+&lt;h2&gt;Object&lt;/h2&gt;
+&lt;p&gt;However the name of the object can be used in match filters so it should be uniq.&lt;/p&gt;
+&lt;h2&gt;Interface&lt;/h2&gt;
+&lt;p&gt;The interfaces meant to be global and reusable therefore they should be uniq too.
+There standard interfaces which are implemented by all of the client.&lt;/p&gt;</content><category term="dbus"></category></entry><entry><title>Argparse default trick</title><link href="https://nyiro.name/argparse-default-trick.html" rel="alternate"></link><published>2021-01-03T12:00:00+01:00</published><updated>2021-01-03T12:00:00+01:00</updated><author><name>Nyirő, Gergő</name></author><id>tag:nyiro.name,2021-01-03:/argparse-default-trick.html</id><summary type="html">&lt;p&gt;Simple argparse extension with inspect.signature&lt;/p&gt;</summary><content type="html">&lt;p&gt;At work we have a repetitive job to create small helper scripts for our
 internal services. Most of them are simple xmlrpc client which expose only a
 couple of methods and the methods have zero or one parameter. This minimalist
 requirements can be implemented with standard python libraries.&lt;/p&gt;
