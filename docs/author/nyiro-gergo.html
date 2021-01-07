@@ -22,8 +22,8 @@
                 <article>
                     <h1 class="entry-title"><a href="https://nyiro.name/discover-dbus.html">Discover dbus</a></h1>
 <footer class="post-info">
-        <abbr class="published" title="2021-01-05T21:00:00+01:00">
-                Published: Tue 05 January 2021
+        <abbr class="published" title="2021-01-07T20:22:00+01:00">
+                Published: Thu 07 January 2021
         </abbr>
 
         <address class="vcard author">
@@ -31,12 +31,15 @@
         </address>
 <p>In <a href="https://nyiro.name/category/dbus.html">dbus</a>.</p>
 
-</footer><!-- /.post-info --><p>I'm no expert in this subject by any means just read some tutorial about dbus
-so I thought I could summarize them for other beginners like me.</p>
+</footer><!-- /.post-info --><p>In this guide we will discover dbus services with the
+<a href="https://dbus.freedesktop.org/doc/dbus-send.1.html">dbus-send</a> command. <code>dbus-send</code> may
+not the most user friendly tool to introspect dbus services but we can learn
+more about the dbus protocol in this way.</p>
 <h1>List connections</h1>
-<p>Let see who is listening on the session bus:</p>
+<p>As the first step we should list the connections on the session bus:</p>
 <div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
   /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+
    array [
       string &quot;org.freedesktop.DBus&quot;
       string &quot;:1.403&quot;
@@ -51,24 +54,260 @@ so I thought I could summarize them for other beginners like me.</p>
 </code></pre></div>
 
 
-<p>This command requires some explanations. <code>dbus-send</code> call the <code>ListNames</code> method of
+<p>This command requires some explanation: <code>dbus-send</code> call the <code>ListNames</code> method of
 <code>/org/freedesktop/DBus</code> object at the <code>org.freedesktop.DBus</code> address. The <code>ListNames</code>
-method is defined in the <code>org.freedesktop.DBus</code> interface. The <code>org.freedesktop.DBus</code>
-seems quite repetative.</p>
+method is defined in the <code>org.freedesktop.DBus</code> interface that's why we wrote
+<code>org.freedesktop.DBus.ListNames</code> at the end of the command.</p>
 <p>The reply is the list of bus names on the session bus. You can see two kind of
-bus names: unique name (:1.403) and well known name (org.pulseaudio.Server).
-All the bus clients has a uniq name but they can require well known name, too.
-System services and managed services usually has well known name for easier access.</p>
-<p>There are two reasons why <code>org.freedesktop.DBus</code> is so repetative in our example: unique
-names and global interfaces.</p>
+bus names there: unique name (:1.403) and well-known name (org.pulseaudio.Server).
+All the bus clients has a unique name but they can require well-known name, too.
+Services usually has well known name for easier access.</p>
+<p>You may ask why we have to write <code>org.freedesktop.DBus</code> so many times. The answer lies
+in the components of dbus protocol: addresses, objects and interfaces.</p>
 <h2>Address</h2>
-<p>Dbus use the unique name in the protocol the well known name is only a helping
-mechanism for the coordination of dbus services.</p>
+<p>The well-known name of a dbus client is only used in message routing. Other
+features like <a href="https://dbus.freedesktop.org/doc/dbus-specification.html#message-bus-routing-match-rules">match
+rule</a>
+uses only the unique name of the client. So the well-known name has to be
+unique on the bus but it does not provide any further information about the
+client behavior.</p>
 <h2>Object</h2>
-<p>However the name of the object can be used in match filters so it should be uniq.</p>
+<p>The name of the object can be used in match filters so it should be unique and
+they usually follow the same naming convention as the well-known bus name:</p>
+<div class="highlight"><pre><span></span><code>org.freedesktop.DBus -&gt; /org/freedesktop/DBus
+</code></pre></div>
+
+
 <h2>Interface</h2>
-<p>The interfaces meant to be global and reusable therefore they should be uniq too.
-There standard interfaces which are implemented by all of the client.</p>                </article>
+<p>The interfaces describes the methods, signals and properties of the dbus objects
+they meant to be reusable so there are standard interfaces which are implemented
+by most of the dbus objects. Because interfaces can be shared their name are unique
+therefore the object specific interfaces starts with the well-known name of the
+service. Such an interface is the <code>org.freedesktop.DBus</code> which contains the <code>ListNames</code>
+method.</p>
+<h1>Introspect</h1>
+<p>Let see what other methods are implemented by <code>/org/freedesktop/DBus</code>:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect
+
+   string &quot;&lt;!DOCTYPE node PUBLIC &quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&quot; &quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&quot;&gt;
+&lt;node&gt;
+  &lt;interface name=&quot;org.freedesktop.DBus&quot;&gt;
+    &lt;method name=&quot;RequestName&quot;&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;s&quot;/&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;u&quot;/&gt;
+      &lt;arg direction=&quot;out&quot; type=&quot;u&quot;/&gt;
+    &lt;/method&gt;
+    &lt;method name=&quot;ListNames&quot;&gt;
+      &lt;arg direction=&quot;out&quot; type=&quot;as&quot;/&gt;
+    &lt;/method&gt;
+    ...
+    &lt;property name=&quot;Features&quot; type=&quot;as&quot; access=&quot;read&quot;&gt;
+      &lt;annotation name=&quot;org.freedesktop.DBus.Property.EmitsChangedSignal&quot; value=&quot;const&quot;/&gt;
+    &lt;/property&gt;
+    &lt;property name=&quot;Interfaces&quot; type=&quot;as&quot; access=&quot;read&quot;&gt;
+      &lt;annotation name=&quot;org.freedesktop.DBus.Property.EmitsChangedSignal&quot; value=&quot;const&quot;/&gt;
+    &lt;/property&gt;
+    ...
+    &lt;signal name=&quot;NameAcquired&quot;&gt;
+      &lt;arg type=&quot;s&quot;/&gt;
+    &lt;/signal&gt;
+  &lt;/interface&gt;
+  &lt;interface name=&quot;org.freedesktop.DBus.Properties&quot;&gt;
+    &lt;method name=&quot;Get&quot;&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;s&quot;/&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;s&quot;/&gt;
+      &lt;arg direction=&quot;out&quot; type=&quot;v&quot;/&gt;
+    &lt;/method&gt;
+    &lt;method name=&quot;GetAll&quot;&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;s&quot;/&gt;
+      &lt;arg direction=&quot;out&quot; type=&quot;a{sv}&quot;/&gt;
+    &lt;/method&gt;
+    &lt;method name=&quot;Set&quot;&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;s&quot;/&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;s&quot;/&gt;
+      &lt;arg direction=&quot;in&quot; type=&quot;v&quot;/&gt;
+    &lt;/method&gt;
+    &lt;signal name=&quot;PropertiesChanged&quot;&gt;
+      &lt;arg type=&quot;s&quot; name=&quot;interface_name&quot;/&gt;
+      &lt;arg type=&quot;a{sv}&quot; name=&quot;changed_properties&quot;/&gt;
+      &lt;arg type=&quot;as&quot; name=&quot;invalidated_properties&quot;/&gt;
+    &lt;/signal&gt;
+  &lt;/interface&gt;
+  &lt;interface name=&quot;org.freedesktop.DBus.Introspectable&quot;&gt;
+    &lt;method name=&quot;Introspect&quot;&gt;
+      &lt;arg direction=&quot;out&quot; type=&quot;s&quot;/&gt;
+    &lt;/method&gt;
+  &lt;/interface&gt;
+  ...
+&lt;/node&gt;
+&quot;
+</code></pre></div>
+
+
+<p>The dbus objects can be introspected with the <code>Introspect</code> method of the
+<code>org.freedesktop.DBus.Introspectable</code> interface. The
+<code>org.freedesktop.DBus.Introspectable</code> is one of the <a href="https://dbus.freedesktop.org/doc/dbus-specification.html#standard-interfaces">standard
+interfaces</a>
+which are implemented by all the dbus objects. The reply of the <code>Introspect</code> is
+an xml document which is defined in the
+<a href="https://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format">introspect.dtd</a>.</p>
+<h2>Method</h2>
+<p>The introspect xml document is quite readable alone without its specification.
+For example the <code>RequestName</code> method has two arguments (<code>direction="in"</code>) a string (<code>type="s"</code>) and
+a 32-bit unsigned integer (<code>type="u"</code>) and returns (<code>direction="out"</code>) a 32-bit unsigned
+integer. You can read more about the type notation in the <a href="https://pythonhosted.org/txdbus/dbus_overview.html">dbus
+overview</a>.</p>
+<p>Let see how the <code>RequestName</code> method works:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.RequestName string:&#39;foo.bar.baz&#39; uint32:4
+
+  uint32:1
+</code></pre></div>
+
+
+<p>The first argument is the requested name and the second argument is a flag
+where <code>4</code> means <code>DBUS_NAME_FLAG_DO_NOT_QUEUE</code>. The other values of the flag
+are described in the <a href="https://dbus.freedesktop.org/doc/dbus-specification.html#message-bus-messages">bus
+messages</a>
+section of the dbus specification.</p>
+<h2>Signal</h2>
+<p>Beside the return value the <code>/org/freedesktop/DBus</code> object will broadcast a
+<code>org.freedesktop.DBus.NameAcquired</code> signal if the <code>RequestName</code> call succeeded.
+This is a common pattern in dbus that some method call triggers a signal so an
+observer client can match to the signals and collect the changes about the
+other clients.</p>
+<p>For development purposes the dbus messages can be monitored with <code>dbus-monitor</code>:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-monitor --session
+
+signal time=1609972071.551809 sender=org.freedesktop.DBus -&gt; destination=:1.572 serial=2 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameAcquired
+   string &quot;:1.572&quot;
+method call time=1609972071.552236 sender=:1.572 -&gt; destination=org.freedesktop.DBus serial=2 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=RequestName
+   string &quot;foo.bar.baz&quot;
+   uint32 4
+signal time=1609972071.552288 sender=org.freedesktop.DBus -&gt; destination=(null destination) serial=45 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameOwnerChanged
+   string &quot;foo.bar.baz&quot;
+   string &quot;&quot;
+   string &quot;:1.572&quot;
+signal time=1609972071.552354 sender=org.freedesktop.DBus -&gt; destination=:1.572 serial=3 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameAcquired
+   string &quot;foo.bar.baz&quot;
+method return time=1609972071.552387 sender=org.freedesktop.DBus -&gt; destination=:1.572 serial=4 reply_serial=2
+   uint32 1
+signal time=1609972071.553096 sender=org.freedesktop.DBus -&gt; destination=:1.572 serial=9 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameLost
+   string &quot;foo.bar.baz&quot;
+signal time=1609972071.553164 sender=org.freedesktop.DBus -&gt; destination=(null destination) serial=46 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameOwnerChanged
+   string &quot;foo.bar.baz&quot;
+   string &quot;:1.572&quot;
+   string &quot;&quot;
+signal time=1609972071.553227 sender=org.freedesktop.DBus -&gt; destination=:1.572 serial=10 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameLost
+   string &quot;:1.572&quot;
+</code></pre></div>
+
+
+<p>From these messages above you can read the story of our short lived connection:</p>
+<ul>
+<li>Our client gets the :1.572 unique name.</li>
+<li>Our client requests the "foo.bar.baz" well-known name without queuing (4).</li>
+<li><code>NameOwnerChanged</code> signal says that our client got the "foo.bar.baz" well-known name.</li>
+<li><code>NameAcquired</code> signal says that "foo.bar.baz" name is acquired.</li>
+<li>Our client closes the connection so there will be 2 <code>NameLost</code> signal:
+  one for our unique name and one for our requested well-known name.</li>
+<li>Between the two <code>NameLost</code> signal a second <code>NameOwnerChanged</code> signal shows that the "foo.bar.baz" is free.</li>
+</ul>
+<h2>Property</h2>
+<p>The <code>org.freedesktop.DBus</code> interface holds some properties (<code>Features</code>,
+<code>Interface</code>) beside the methods and signals. The properties can be managed via
+the <code>org.freedesktop.DBus.Properties</code> interface. Let start with the <code>Get</code> method:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.Properties.Get string:&#39;org.freedesktop.DBus&#39; string:&#39;Features&#39;
+
+   variant       array [
+         string &quot;SystemdActivation&quot;
+      ]
+</code></pre></div>
+
+
+<p>The first argument of the <code>Get</code> method is the interface name
+(<code>string:'org.freedesktop.DBus'</code>) and the second argument is the property name
+(<code>string:'Features'</code>).</p>
+<p><em>Remark:</em> In some cases the interface name can be empty string if the object has only one
+interface with properties.</p>
+<p>The <code>GetAll</code> method replies with all the properties in a dict:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.Properties.GetAll string:&#39;org.freedesktop.DBus&#39;
+
+   array [
+      dict entry(
+         string &quot;Features&quot;
+         variant             array [
+               string &quot;SystemdActivation&quot;
+            ]
+      )
+      dict entry(
+         string &quot;Interfaces&quot;
+         variant             array [
+               string &quot;org.freedesktop.DBus.Monitoring&quot;
+               string &quot;org.freedesktop.DBus.Debug.Stats&quot;
+            ]
+      )
+   ]
+</code></pre></div>
+
+
+<p>The properties of <code>org.freedesktop.DBus</code> are read only (<code>access="read"</code>) so we
+cannot try the <code>Set</code> method.</p>
+<p><em>Remark:</em> A successful <code>Set</code> call would trigger a
+<code>org.freedesktop.DBus.PropertiesChanged</code> signal just like the <code>RequestName</code> method did
+with <code>NameAcquired</code> signal.</p>
+<h2>Object names</h2>
+<p>We can introspect a dbus object but how could we find its name?</p>
+<p>Short answer we can introspect that, too. Let see the objects of <code>org.pulseaudio.Server</code></p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.pulseaudio.Server --type=method_call --print-reply \
+  / org.freedesktop.DBus.Introspectable.Introspect
+
+   string &quot;&lt;!DOCTYPE node PUBLIC &quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&quot; &quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&quot;&gt;
+&lt;node&gt;
+  &lt;node name=&quot;org&quot;/&gt;
+&lt;/node&gt;
+&quot;
+</code></pre></div>
+
+
+<p>So the <code>/</code> object only contains a sub node <code>org</code>. Let see the next level:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.pulseaudio.Server --type=method_call --print-reply \
+  /org org.freedesktop.DBus.Introspectable.Introspect
+
+   string &quot;&lt;!DOCTYPE node PUBLIC &quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&quot; &quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&quot;&gt;
+&lt;node&gt;
+  &lt;node name=&quot;pulseaudio&quot;/&gt;
+&lt;/node&gt;
+&quot;
+</code></pre></div>
+
+
+<p>We can repeat this search until we find <code>server_lookup1</code>:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=org.pulseaudio.Server --type=method_call --print-reply \
+  /org/pulseaudio/server_lookup1 org.freedesktop.DBus.Introspectable.Introspect
+
+   string &quot;&lt;!DOCTYPE node PUBLIC &quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&quot; &quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&quot;&gt;
+&lt;node&gt; &lt;!-- If you are looking for documentation make sure to check out
+      http://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/Developer/Clients/DBus/ --&gt;
+ &lt;interface name=&quot;org.PulseAudio.ServerLookup1&quot;&gt;
+  &lt;property name=&quot;Address&quot; type=&quot;s&quot; access=&quot;read&quot;/&gt;
+ &lt;/interface&gt;
+ ...
+&lt;/node&gt;
+&quot;
+</code></pre></div>
+
+
+<p><em>Remark:</em> The number in the object name (server_lookup<strong>1</strong>) is usually used
+for API versioning (you should not search for multiple servers).</p>
+<h1>Epilogue</h1>
+<p>This command can be applied to the system bus as well. Only the <code>--system</code>
+option has to be used instead of <code>--session</code>.</p>
+<p>Now you can discover the <code>system</code> and <code>session</code> buses on your machine without
+any fancy GUI.</p>                </article>
             </aside><!-- /#featured -->
                 <section id="content" class="body">
                     <h1>Other articles</h1>

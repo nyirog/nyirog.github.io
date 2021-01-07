@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>nyirog</title><link href="https://nyiro.name/" rel="alternate"></link><link href="https://nyiro.name/feeds/all.atom.xml" rel="self"></link><id>https://nyiro.name/</id><updated>2021-01-05T21:00:00+01:00</updated><entry><title>Discover dbus</title><link href="https://nyiro.name/discover-dbus.html" rel="alternate"></link><published>2021-01-05T21:00:00+01:00</published><updated>2021-01-05T21:00:00+01:00</updated><author><name>Nyirő, Gergő</name></author><id>tag:nyiro.name,2021-01-05:/discover-dbus.html</id><summary type="html">&lt;p&gt;Compare dbus services to REST APIs&lt;/p&gt;</summary><content type="html">&lt;p&gt;I'm no expert in this subject by any means just read some tutorial about dbus
-so I thought I could summarize them for other beginners like me.&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>nyirog</title><link href="https://nyiro.name/" rel="alternate"></link><link href="https://nyiro.name/feeds/all.atom.xml" rel="self"></link><id>https://nyiro.name/</id><updated>2021-01-07T20:22:00+01:00</updated><entry><title>Discover dbus</title><link href="https://nyiro.name/discover-dbus.html" rel="alternate"></link><published>2021-01-07T20:22:00+01:00</published><updated>2021-01-07T20:22:00+01:00</updated><author><name>Nyirő, Gergő</name></author><id>tag:nyiro.name,2021-01-07:/discover-dbus.html</id><summary type="html">&lt;p&gt;Discover dbus with dbus-send&lt;/p&gt;</summary><content type="html">&lt;p&gt;In this guide we will discover dbus services with the
+&lt;a href="https://dbus.freedesktop.org/doc/dbus-send.1.html"&gt;dbus-send&lt;/a&gt; command. &lt;code&gt;dbus-send&lt;/code&gt; may
+not the most user friendly tool to introspect dbus services but we can learn
+more about the dbus protocol in this way.&lt;/p&gt;
 &lt;h1&gt;List connections&lt;/h1&gt;
-&lt;p&gt;Let see who is listening on the session bus:&lt;/p&gt;
+&lt;p&gt;As the first step we should list the connections on the session bus:&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
   /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+
    array [
       string &amp;quot;org.freedesktop.DBus&amp;quot;
       string &amp;quot;:1.403&amp;quot;
@@ -19,24 +22,260 @@ so I thought I could summarize them for other beginners like me.&lt;/p&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 
 
-&lt;p&gt;This command requires some explanations. &lt;code&gt;dbus-send&lt;/code&gt; call the &lt;code&gt;ListNames&lt;/code&gt; method of
+&lt;p&gt;This command requires some explanation: &lt;code&gt;dbus-send&lt;/code&gt; call the &lt;code&gt;ListNames&lt;/code&gt; method of
 &lt;code&gt;/org/freedesktop/DBus&lt;/code&gt; object at the &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; address. The &lt;code&gt;ListNames&lt;/code&gt;
-method is defined in the &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; interface. The &lt;code&gt;org.freedesktop.DBus&lt;/code&gt;
-seems quite repetative.&lt;/p&gt;
+method is defined in the &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; interface that's why we wrote
+&lt;code&gt;org.freedesktop.DBus.ListNames&lt;/code&gt; at the end of the command.&lt;/p&gt;
 &lt;p&gt;The reply is the list of bus names on the session bus. You can see two kind of
-bus names: unique name (:1.403) and well known name (org.pulseaudio.Server).
-All the bus clients has a uniq name but they can require well known name, too.
-System services and managed services usually has well known name for easier access.&lt;/p&gt;
-&lt;p&gt;There are two reasons why &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; is so repetative in our example: unique
-names and global interfaces.&lt;/p&gt;
+bus names there: unique name (:1.403) and well-known name (org.pulseaudio.Server).
+All the bus clients has a unique name but they can require well-known name, too.
+Services usually has well known name for easier access.&lt;/p&gt;
+&lt;p&gt;You may ask why we have to write &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; so many times. The answer lies
+in the components of dbus protocol: addresses, objects and interfaces.&lt;/p&gt;
 &lt;h2&gt;Address&lt;/h2&gt;
-&lt;p&gt;Dbus use the unique name in the protocol the well known name is only a helping
-mechanism for the coordination of dbus services.&lt;/p&gt;
+&lt;p&gt;The well-known name of a dbus client is only used in message routing. Other
+features like &lt;a href="https://dbus.freedesktop.org/doc/dbus-specification.html#message-bus-routing-match-rules"&gt;match
+rule&lt;/a&gt;
+uses only the unique name of the client. So the well-known name has to be
+unique on the bus but it does not provide any further information about the
+client behavior.&lt;/p&gt;
 &lt;h2&gt;Object&lt;/h2&gt;
-&lt;p&gt;However the name of the object can be used in match filters so it should be uniq.&lt;/p&gt;
+&lt;p&gt;The name of the object can be used in match filters so it should be unique and
+they usually follow the same naming convention as the well-known bus name:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;org.freedesktop.DBus -&amp;gt; /org/freedesktop/DBus
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
 &lt;h2&gt;Interface&lt;/h2&gt;
-&lt;p&gt;The interfaces meant to be global and reusable therefore they should be uniq too.
-There standard interfaces which are implemented by all of the client.&lt;/p&gt;</content><category term="dbus"></category></entry><entry><title>Argparse default trick</title><link href="https://nyiro.name/argparse-default-trick.html" rel="alternate"></link><published>2021-01-03T12:00:00+01:00</published><updated>2021-01-03T12:00:00+01:00</updated><author><name>Nyirő, Gergő</name></author><id>tag:nyiro.name,2021-01-03:/argparse-default-trick.html</id><summary type="html">&lt;p&gt;Simple argparse extension with inspect.signature&lt;/p&gt;</summary><content type="html">&lt;p&gt;At work we have a repetitive job to create small helper scripts for our
+&lt;p&gt;The interfaces describes the methods, signals and properties of the dbus objects
+they meant to be reusable so there are standard interfaces which are implemented
+by most of the dbus objects. Because interfaces can be shared their name are unique
+therefore the object specific interfaces starts with the well-known name of the
+service. Such an interface is the &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; which contains the &lt;code&gt;ListNames&lt;/code&gt;
+method.&lt;/p&gt;
+&lt;h1&gt;Introspect&lt;/h1&gt;
+&lt;p&gt;Let see what other methods are implemented by &lt;code&gt;/org/freedesktop/DBus&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect
+
+   string &amp;quot;&amp;lt;!DOCTYPE node PUBLIC &amp;quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&amp;quot; &amp;quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&amp;quot;&amp;gt;
+&amp;lt;node&amp;gt;
+  &amp;lt;interface name=&amp;quot;org.freedesktop.DBus&amp;quot;&amp;gt;
+    &amp;lt;method name=&amp;quot;RequestName&amp;quot;&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;s&amp;quot;/&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;u&amp;quot;/&amp;gt;
+      &amp;lt;arg direction=&amp;quot;out&amp;quot; type=&amp;quot;u&amp;quot;/&amp;gt;
+    &amp;lt;/method&amp;gt;
+    &amp;lt;method name=&amp;quot;ListNames&amp;quot;&amp;gt;
+      &amp;lt;arg direction=&amp;quot;out&amp;quot; type=&amp;quot;as&amp;quot;/&amp;gt;
+    &amp;lt;/method&amp;gt;
+    ...
+    &amp;lt;property name=&amp;quot;Features&amp;quot; type=&amp;quot;as&amp;quot; access=&amp;quot;read&amp;quot;&amp;gt;
+      &amp;lt;annotation name=&amp;quot;org.freedesktop.DBus.Property.EmitsChangedSignal&amp;quot; value=&amp;quot;const&amp;quot;/&amp;gt;
+    &amp;lt;/property&amp;gt;
+    &amp;lt;property name=&amp;quot;Interfaces&amp;quot; type=&amp;quot;as&amp;quot; access=&amp;quot;read&amp;quot;&amp;gt;
+      &amp;lt;annotation name=&amp;quot;org.freedesktop.DBus.Property.EmitsChangedSignal&amp;quot; value=&amp;quot;const&amp;quot;/&amp;gt;
+    &amp;lt;/property&amp;gt;
+    ...
+    &amp;lt;signal name=&amp;quot;NameAcquired&amp;quot;&amp;gt;
+      &amp;lt;arg type=&amp;quot;s&amp;quot;/&amp;gt;
+    &amp;lt;/signal&amp;gt;
+  &amp;lt;/interface&amp;gt;
+  &amp;lt;interface name=&amp;quot;org.freedesktop.DBus.Properties&amp;quot;&amp;gt;
+    &amp;lt;method name=&amp;quot;Get&amp;quot;&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;s&amp;quot;/&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;s&amp;quot;/&amp;gt;
+      &amp;lt;arg direction=&amp;quot;out&amp;quot; type=&amp;quot;v&amp;quot;/&amp;gt;
+    &amp;lt;/method&amp;gt;
+    &amp;lt;method name=&amp;quot;GetAll&amp;quot;&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;s&amp;quot;/&amp;gt;
+      &amp;lt;arg direction=&amp;quot;out&amp;quot; type=&amp;quot;a{sv}&amp;quot;/&amp;gt;
+    &amp;lt;/method&amp;gt;
+    &amp;lt;method name=&amp;quot;Set&amp;quot;&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;s&amp;quot;/&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;s&amp;quot;/&amp;gt;
+      &amp;lt;arg direction=&amp;quot;in&amp;quot; type=&amp;quot;v&amp;quot;/&amp;gt;
+    &amp;lt;/method&amp;gt;
+    &amp;lt;signal name=&amp;quot;PropertiesChanged&amp;quot;&amp;gt;
+      &amp;lt;arg type=&amp;quot;s&amp;quot; name=&amp;quot;interface_name&amp;quot;/&amp;gt;
+      &amp;lt;arg type=&amp;quot;a{sv}&amp;quot; name=&amp;quot;changed_properties&amp;quot;/&amp;gt;
+      &amp;lt;arg type=&amp;quot;as&amp;quot; name=&amp;quot;invalidated_properties&amp;quot;/&amp;gt;
+    &amp;lt;/signal&amp;gt;
+  &amp;lt;/interface&amp;gt;
+  &amp;lt;interface name=&amp;quot;org.freedesktop.DBus.Introspectable&amp;quot;&amp;gt;
+    &amp;lt;method name=&amp;quot;Introspect&amp;quot;&amp;gt;
+      &amp;lt;arg direction=&amp;quot;out&amp;quot; type=&amp;quot;s&amp;quot;/&amp;gt;
+    &amp;lt;/method&amp;gt;
+  &amp;lt;/interface&amp;gt;
+  ...
+&amp;lt;/node&amp;gt;
+&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The dbus objects can be introspected with the &lt;code&gt;Introspect&lt;/code&gt; method of the
+&lt;code&gt;org.freedesktop.DBus.Introspectable&lt;/code&gt; interface. The
+&lt;code&gt;org.freedesktop.DBus.Introspectable&lt;/code&gt; is one of the &lt;a href="https://dbus.freedesktop.org/doc/dbus-specification.html#standard-interfaces"&gt;standard
+interfaces&lt;/a&gt;
+which are implemented by all the dbus objects. The reply of the &lt;code&gt;Introspect&lt;/code&gt; is
+an xml document which is defined in the
+&lt;a href="https://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format"&gt;introspect.dtd&lt;/a&gt;.&lt;/p&gt;
+&lt;h2&gt;Method&lt;/h2&gt;
+&lt;p&gt;The introspect xml document is quite readable alone without its specification.
+For example the &lt;code&gt;RequestName&lt;/code&gt; method has two arguments (&lt;code&gt;direction="in"&lt;/code&gt;) a string (&lt;code&gt;type="s"&lt;/code&gt;) and
+a 32-bit unsigned integer (&lt;code&gt;type="u"&lt;/code&gt;) and returns (&lt;code&gt;direction="out"&lt;/code&gt;) a 32-bit unsigned
+integer. You can read more about the type notation in the &lt;a href="https://pythonhosted.org/txdbus/dbus_overview.html"&gt;dbus
+overview&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Let see how the &lt;code&gt;RequestName&lt;/code&gt; method works:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.RequestName string:&amp;#39;foo.bar.baz&amp;#39; uint32:4
+
+  uint32:1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The first argument is the requested name and the second argument is a flag
+where &lt;code&gt;4&lt;/code&gt; means &lt;code&gt;DBUS_NAME_FLAG_DO_NOT_QUEUE&lt;/code&gt;. The other values of the flag
+are described in the &lt;a href="https://dbus.freedesktop.org/doc/dbus-specification.html#message-bus-messages"&gt;bus
+messages&lt;/a&gt;
+section of the dbus specification.&lt;/p&gt;
+&lt;h2&gt;Signal&lt;/h2&gt;
+&lt;p&gt;Beside the return value the &lt;code&gt;/org/freedesktop/DBus&lt;/code&gt; object will broadcast a
+&lt;code&gt;org.freedesktop.DBus.NameAcquired&lt;/code&gt; signal if the &lt;code&gt;RequestName&lt;/code&gt; call succeeded.
+This is a common pattern in dbus that some method call triggers a signal so an
+observer client can match to the signals and collect the changes about the
+other clients.&lt;/p&gt;
+&lt;p&gt;For development purposes the dbus messages can be monitored with &lt;code&gt;dbus-monitor&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-monitor --session
+
+signal time=1609972071.551809 sender=org.freedesktop.DBus -&amp;gt; destination=:1.572 serial=2 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameAcquired
+   string &amp;quot;:1.572&amp;quot;
+method call time=1609972071.552236 sender=:1.572 -&amp;gt; destination=org.freedesktop.DBus serial=2 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=RequestName
+   string &amp;quot;foo.bar.baz&amp;quot;
+   uint32 4
+signal time=1609972071.552288 sender=org.freedesktop.DBus -&amp;gt; destination=(null destination) serial=45 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameOwnerChanged
+   string &amp;quot;foo.bar.baz&amp;quot;
+   string &amp;quot;&amp;quot;
+   string &amp;quot;:1.572&amp;quot;
+signal time=1609972071.552354 sender=org.freedesktop.DBus -&amp;gt; destination=:1.572 serial=3 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameAcquired
+   string &amp;quot;foo.bar.baz&amp;quot;
+method return time=1609972071.552387 sender=org.freedesktop.DBus -&amp;gt; destination=:1.572 serial=4 reply_serial=2
+   uint32 1
+signal time=1609972071.553096 sender=org.freedesktop.DBus -&amp;gt; destination=:1.572 serial=9 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameLost
+   string &amp;quot;foo.bar.baz&amp;quot;
+signal time=1609972071.553164 sender=org.freedesktop.DBus -&amp;gt; destination=(null destination) serial=46 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameOwnerChanged
+   string &amp;quot;foo.bar.baz&amp;quot;
+   string &amp;quot;:1.572&amp;quot;
+   string &amp;quot;&amp;quot;
+signal time=1609972071.553227 sender=org.freedesktop.DBus -&amp;gt; destination=:1.572 serial=10 path=/org/freedesktop/DBus; interface=org.freedesktop.DBus; member=NameLost
+   string &amp;quot;:1.572&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;From these messages above you can read the story of our short lived connection:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Our client gets the :1.572 unique name.&lt;/li&gt;
+&lt;li&gt;Our client requests the "foo.bar.baz" well-known name without queuing (4).&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;NameOwnerChanged&lt;/code&gt; signal says that our client got the "foo.bar.baz" well-known name.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;NameAcquired&lt;/code&gt; signal says that "foo.bar.baz" name is acquired.&lt;/li&gt;
+&lt;li&gt;Our client closes the connection so there will be 2 &lt;code&gt;NameLost&lt;/code&gt; signal:
+  one for our unique name and one for our requested well-known name.&lt;/li&gt;
+&lt;li&gt;Between the two &lt;code&gt;NameLost&lt;/code&gt; signal a second &lt;code&gt;NameOwnerChanged&lt;/code&gt; signal shows that the "foo.bar.baz" is free.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Property&lt;/h2&gt;
+&lt;p&gt;The &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; interface holds some properties (&lt;code&gt;Features&lt;/code&gt;,
+&lt;code&gt;Interface&lt;/code&gt;) beside the methods and signals. The properties can be managed via
+the &lt;code&gt;org.freedesktop.DBus.Properties&lt;/code&gt; interface. Let start with the &lt;code&gt;Get&lt;/code&gt; method:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.Properties.Get string:&amp;#39;org.freedesktop.DBus&amp;#39; string:&amp;#39;Features&amp;#39;
+
+   variant       array [
+         string &amp;quot;SystemdActivation&amp;quot;
+      ]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The first argument of the &lt;code&gt;Get&lt;/code&gt; method is the interface name
+(&lt;code&gt;string:'org.freedesktop.DBus'&lt;/code&gt;) and the second argument is the property name
+(&lt;code&gt;string:'Features'&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Remark:&lt;/em&gt; In some cases the interface name can be empty string if the object has only one
+interface with properties.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;GetAll&lt;/code&gt; method replies with all the properties in a dict:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+  /org/freedesktop/DBus org.freedesktop.DBus.Properties.GetAll string:&amp;#39;org.freedesktop.DBus&amp;#39;
+
+   array [
+      dict entry(
+         string &amp;quot;Features&amp;quot;
+         variant             array [
+               string &amp;quot;SystemdActivation&amp;quot;
+            ]
+      )
+      dict entry(
+         string &amp;quot;Interfaces&amp;quot;
+         variant             array [
+               string &amp;quot;org.freedesktop.DBus.Monitoring&amp;quot;
+               string &amp;quot;org.freedesktop.DBus.Debug.Stats&amp;quot;
+            ]
+      )
+   ]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The properties of &lt;code&gt;org.freedesktop.DBus&lt;/code&gt; are read only (&lt;code&gt;access="read"&lt;/code&gt;) so we
+cannot try the &lt;code&gt;Set&lt;/code&gt; method.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Remark:&lt;/em&gt; A successful &lt;code&gt;Set&lt;/code&gt; call would trigger a
+&lt;code&gt;org.freedesktop.DBus.PropertiesChanged&lt;/code&gt; signal just like the &lt;code&gt;RequestName&lt;/code&gt; method did
+with &lt;code&gt;NameAcquired&lt;/code&gt; signal.&lt;/p&gt;
+&lt;h2&gt;Object names&lt;/h2&gt;
+&lt;p&gt;We can introspect a dbus object but how could we find its name?&lt;/p&gt;
+&lt;p&gt;Short answer we can introspect that, too. Let see the objects of &lt;code&gt;org.pulseaudio.Server&lt;/code&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.pulseaudio.Server --type=method_call --print-reply \
+  / org.freedesktop.DBus.Introspectable.Introspect
+
+   string &amp;quot;&amp;lt;!DOCTYPE node PUBLIC &amp;quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&amp;quot; &amp;quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&amp;quot;&amp;gt;
+&amp;lt;node&amp;gt;
+  &amp;lt;node name=&amp;quot;org&amp;quot;/&amp;gt;
+&amp;lt;/node&amp;gt;
+&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;So the &lt;code&gt;/&lt;/code&gt; object only contains a sub node &lt;code&gt;org&lt;/code&gt;. Let see the next level:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.pulseaudio.Server --type=method_call --print-reply \
+  /org org.freedesktop.DBus.Introspectable.Introspect
+
+   string &amp;quot;&amp;lt;!DOCTYPE node PUBLIC &amp;quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&amp;quot; &amp;quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&amp;quot;&amp;gt;
+&amp;lt;node&amp;gt;
+  &amp;lt;node name=&amp;quot;pulseaudio&amp;quot;/&amp;gt;
+&amp;lt;/node&amp;gt;
+&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We can repeat this search until we find &lt;code&gt;server_lookup1&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;code&gt;$ dbus-send --session --dest=org.pulseaudio.Server --type=method_call --print-reply \
+  /org/pulseaudio/server_lookup1 org.freedesktop.DBus.Introspectable.Introspect
+
+   string &amp;quot;&amp;lt;!DOCTYPE node PUBLIC &amp;quot;-//freedesktop//DTD D-BUS Object Introspection 1.0//EN&amp;quot; &amp;quot;http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd&amp;quot;&amp;gt;
+&amp;lt;node&amp;gt; &amp;lt;!-- If you are looking for documentation make sure to check out
+      http://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/Developer/Clients/DBus/ --&amp;gt;
+ &amp;lt;interface name=&amp;quot;org.PulseAudio.ServerLookup1&amp;quot;&amp;gt;
+  &amp;lt;property name=&amp;quot;Address&amp;quot; type=&amp;quot;s&amp;quot; access=&amp;quot;read&amp;quot;/&amp;gt;
+ &amp;lt;/interface&amp;gt;
+ ...
+&amp;lt;/node&amp;gt;
+&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;em&gt;Remark:&lt;/em&gt; The number in the object name (server_lookup&lt;strong&gt;1&lt;/strong&gt;) is usually used
+for API versioning (you should not search for multiple servers).&lt;/p&gt;
+&lt;h1&gt;Epilogue&lt;/h1&gt;
+&lt;p&gt;This command can be applied to the system bus as well. Only the &lt;code&gt;--system&lt;/code&gt;
+option has to be used instead of &lt;code&gt;--session&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Now you can discover the &lt;code&gt;system&lt;/code&gt; and &lt;code&gt;session&lt;/code&gt; buses on your machine without
+any fancy GUI.&lt;/p&gt;</content><category term="dbus"></category></entry><entry><title>Argparse default trick</title><link href="https://nyiro.name/argparse-default-trick.html" rel="alternate"></link><published>2021-01-03T12:00:00+01:00</published><updated>2021-01-03T12:00:00+01:00</updated><author><name>Nyirő, Gergő</name></author><id>tag:nyiro.name,2021-01-03:/argparse-default-trick.html</id><summary type="html">&lt;p&gt;Simple argparse extension with inspect.signature&lt;/p&gt;</summary><content type="html">&lt;p&gt;At work we have a repetitive job to create small helper scripts for our
 internal services. Most of them are simple xmlrpc client which expose only a
 couple of methods and the methods have zero or one parameter. This minimalist
 requirements can be implemented with standard python libraries.&lt;/p&gt;
