@@ -28,6 +28,7 @@ LINKS = (
 # Social widget
 SOCIAL = (
     ('github', 'https://github.com/nyirog'),
+    ('linkedin', 'https://www.linkedin.com/in/nyirog'),
 )
 
 DEFAULT_PAGINATION = 10
