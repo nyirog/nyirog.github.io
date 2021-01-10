@@ -229,7 +229,7 @@ The first argument of the `Get` method is the interface name
 (`string:'org.freedesktop.DBus'`) and the second argument is the property name
 (`string:'Features'`).
 
-_Remark:_ In some cases the interface name can be empty string if the object has only one
+**Remark:** In some cases the interface name can be empty string if the object has only one
 interface with properties.
 
 The `GetAll` method replies with all the properties in a dict:
@@ -258,7 +258,7 @@ $ dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-rep
 The properties of `org.freedesktop.DBus` are read only (`access="read"`) so we
 cannot try the `Set` method.
 
-_Remark:_ A successful `Set` call would trigger a
+**Remark:** A successful `Set` call would trigger a
 `org.freedesktop.DBus.PropertiesChanged` signal just like the `RequestName` method did
 with `NameAcquired` signal.
 
@@ -309,7 +309,7 @@ $ dbus-send --session --dest=org.pulseaudio.Server --type=method_call --print-re
 "
 ```
 
-_Remark:_ The number in the object name (server_lookup**1**) is usually used
+**Remark:** The number in the object name (server_lookup**1**) is usually used
 for API versioning (you should not search for multiple servers).
 
 # Epilogue
