@@ -5,10 +5,11 @@ Date: 2021-01-03T12:00:00
 Tags: Python, argparse
 Category: Python
 
-At work we have a repetitive job to create small helper scripts for our
-internal services. Most of them are simple xmlrpc client which expose only a
-couple of methods and the methods have zero or one parameter. This minimalist
-requirements can be implemented with standard python libraries.
+At [One Identity - Quest](https://www.facebook.com/oneidentityquesthungary/) we
+have a repetitive job to create small helper scripts for our internal services.
+Most of them are simple xmlrpc client which expose only a couple of methods and
+the methods have zero or one parameter. This minimalist requirements can be
+implemented with standard python libraries.
 
 # argparse subparsers
 
