@@ -3,7 +3,7 @@
 
 AUTHOR = 'Nyirő Gergő'
 SITENAME = 'nyirog'
-SITEURL = 'https://nyiro.name'
+SITEURL = 'https://nyirog.github.io'
 DISPLAY_PAGES_ON_MENU = True
 
 PATH = 'content'
