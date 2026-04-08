@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+          <title>nyirog - Reflect go to dbus</title>
+        <meta charset="utf-8" />
+        <meta name="generator" content="Pelican" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://nyirog.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="nyirog Full Atom Feed" />
+
+
+
+
+    <meta name="tags" content="dbus" />
+    <meta name="tags" content="go" />
+
+</head>
+
+<body>
+        <header>
+              <hgroup><h1><a href="https://nyirog.github.io/">nyirog</a></h1></hgroup>
+        <nav><ul>
+            <li><a href="https://nyirog.github.io/pages/projects.html" >Projects</a></li>
+            <li><a href="https://nyirog.github.io/category/dbus.html"  aria-current="page" >dbus</a></li>
+            <li><a href="https://nyirog.github.io/category/python.html" >Python</a></li>
+        </ul></nav>
+        </header>
+        <main>
+<article>
+  <header>
+    <h2>
+      <a href="https://nyirog.github.io/reflect-go-to-dbus.html" rel="bookmark"
+         title="Permalink to Reflect go to dbus">Reflect go to dbus</a></h2>
+ 
+  </header>
+  <p>The <a href="https://github.com/godbus/dbus/blob/master/_examples/prop.go">prop.go</a>
+godbus example demonstrates how easy to register a dbus property from go and
+access the changed value at update. But what if we require all our config data at
+once when one of its property is changed?</p>
+<p>We will look through how to register a native go struct to dbus as a map of
+dbus properties and access the whole struct when any of its field is updated.</p>
+<p>We will need two transformations to achieve our goal:</p>
+<ul>
+<li>Convert struct to a <code>map[string]interface{}</code>.</li>
+<li>Set struct field by its name from the dbus change.</li>
+</ul>
+<h1>Struct to map</h1>
+<p>The godbus <a href="https://github.com/godbus/dbus/blob/master/prop/prop.go">prop.Prop</a>
+accepts any go value which has dbus equivalent type so we only have to convert
+our struct to a map where the keys will be set from the field names.</p>
+<p>This is quite straightforward with
+<a href="https://blog.golang.org/laws-of-reflection">reflecttion</a>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">CreateStructMap</span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="kd">interface</span><span class="p">{})</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">struct_map</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{})</span>
+
+<span class="w">    </span><span class="nx">config_value</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">reflect</span><span class="p">.</span><span class="nx">ValueOf</span><span class="p">(</span><span class="nx">config</span><span class="p">).</span><span class="nx">Elem</span><span class="p">()</span>
+<span class="w">    </span><span class="nx">config_type</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">config_value</span><span class="p">.</span><span class="nx">Type</span><span class="p">()</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">config_type</span><span class="p">.</span><span class="nx">NumField</span><span class="p">();</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">field_type</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">config_type</span><span class="p">.</span><span class="nx">Field</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">strings</span><span class="p">.</span><span class="nx">Title</span><span class="p">(</span><span class="nx">field_type</span><span class="p">.</span><span class="nx">Name</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">field_type</span><span class="p">.</span><span class="nx">Name</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">continue</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="nx">struct_map</span><span class="p">[</span><span class="nx">field_type</span><span class="p">.</span><span class="nx">Name</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">config_value</span><span class="p">.</span><span class="nx">Field</span><span class="p">(</span><span class="nx">i</span><span class="p">).</span><span class="nx">Interface</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">struct_map</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>The only trick what we did is to skip the fields which are not capitalized
+(private fields). The struct fields could have been exported to dbus by
+<a href="https://golang.org/pkg/reflect/#example_StructTag_Lookup">StructTag</a> but our
+export-all-public-field strategy will be good enough for now.</p>
+<h1>Set struct field by its name</h1>
+<p>The update of the struct from the <code>prop.Change</code> is more straightforward:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">SetStructField</span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="kd">interface</span><span class="p">{},</span><span class="w"> </span><span class="nx">change</span><span class="w"> </span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Change</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">config_value</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">reflect</span><span class="p">.</span><span class="nx">ValueOf</span><span class="p">(</span><span class="nx">config</span><span class="p">).</span><span class="nx">Elem</span><span class="p">()</span>
+<span class="w">    </span><span class="nx">config_value</span><span class="p">.</span><span class="nx">FieldByName</span><span class="p">(</span><span class="nx">change</span><span class="p">.</span><span class="nx">Name</span><span class="p">).</span><span class="nx">Set</span><span class="p">(</span><span class="nx">reflect</span><span class="p">.</span><span class="nx">ValueOf</span><span class="p">(</span><span class="nx">change</span><span class="p">.</span><span class="nx">Value</span><span class="p">))</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Only two comments is required for the function above:</p>
+<ul>
+<li>We have to call the <code>Elem()</code> method on the <code>reflect.Value</code> because our struct
+  will be passed as reference.</li>
+<li>The <code>change.Value</code> has to be wrapped into a <code>reflect.Value</code> so the general
+  <code>Set()</code>  method can be used.</li>
+</ul>
+<h1>Updatable interface</h1>
+<p>Our helper functions are quite easy to use but it is more general if we define an
+interface above them:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Updatable</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Update</span><span class="p">(</span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Change</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">dbus</span><span class="p">.</span><span class="nx">Error</span>
+
+<span class="w">    </span><span class="nx">CreatePropertyMap</span><span class="p">()</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Let see how we can implement <code>Updatable</code> interface with a common struct:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Config</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">SomeInt</span><span class="w">    </span><span class="kt">int32</span>
+<span class="w">    </span><span class="nx">SomeString</span><span class="w"> </span><span class="kt">string</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">Config</span><span class="p">)</span><span class="w"> </span><span class="nx">Update</span><span class="p">(</span><span class="nx">change</span><span class="w"> </span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Change</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">dbus</span><span class="p">.</span><span class="nx">Error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">SetStructField</span><span class="p">(</span><span class="nx">config</span><span class="p">,</span><span class="w"> </span><span class="nx">change</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">Config</span><span class="p">)</span><span class="w"> </span><span class="nx">CreatePropertyMap</span><span class="p">()</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">CreateStructMap</span><span class="p">(</span><span class="nx">config</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<h1>Register to dbus</h1>
+<p>Only two helper functions are missing to finish our task. The first function creates
+a <code>map[string]*prop.Prop</code> from our <code>map[string]interface</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">createProps</span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="nx">Updatable</span><span class="p">)</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Prop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">props</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Prop</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">config</span><span class="p">.</span><span class="nx">CreatePropertyMap</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">props</span><span class="p">[</span><span class="nx">name</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Prop</span><span class="p">{</span>
+<span class="w">            </span><span class="nx">value</span><span class="p">,</span>
+<span class="w">            </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">prop</span><span class="p">.</span><span class="nx">EmitTrue</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">config</span><span class="p">.</span><span class="nx">Update</span><span class="p">,</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">props</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>And the second function exports our <code>map[string]*prop.Prop</code> to dbus:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">CreateNode</span><span class="p">(</span><span class="nx">conn</span><span class="w"> </span><span class="o">*</span><span class="nx">dbus</span><span class="p">.</span><span class="nx">Conn</span><span class="p">,</span><span class="w"> </span><span class="nx">path</span><span class="w"> </span><span class="nx">dbus</span><span class="p">.</span><span class="nx">ObjectPath</span><span class="p">,</span><span class="w"> </span><span class="nx">iface</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">config</span><span class="w"> </span><span class="nx">Updatable</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">propsSpec</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Prop</span><span class="p">{</span>
+<span class="w">        </span><span class="nx">iface</span><span class="p">:</span><span class="w"> </span><span class="nx">createProps</span><span class="p">(</span><span class="nx">config</span><span class="p">),</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">props</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">prop</span><span class="p">.</span><span class="nx">New</span><span class="p">(</span><span class="nx">conn</span><span class="p">,</span><span class="w"> </span><span class="nx">path</span><span class="p">,</span><span class="w"> </span><span class="nx">propsSpec</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">node</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">introspect</span><span class="p">.</span><span class="nx">Node</span><span class="p">{</span>
+<span class="w">        </span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="nb">string</span><span class="p">(</span><span class="nx">path</span><span class="p">),</span>
+<span class="w">        </span><span class="nx">Interfaces</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nx">introspect</span><span class="p">.</span><span class="nx">Interface</span><span class="p">{</span>
+<span class="w">            </span><span class="nx">introspect</span><span class="p">.</span><span class="nx">IntrospectData</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">prop</span><span class="p">.</span><span class="nx">IntrospectData</span><span class="p">,</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nx">Name</span><span class="p">:</span><span class="w">       </span><span class="nx">iface</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">Properties</span><span class="p">:</span><span class="w"> </span><span class="nx">props</span><span class="p">.</span><span class="nx">Introspection</span><span class="p">(</span><span class="nx">iface</span><span class="p">),</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">conn</span><span class="p">.</span><span class="nx">Export</span><span class="p">(</span><span class="nx">introspect</span><span class="p">.</span><span class="nx">NewIntrospectable</span><span class="p">(</span><span class="nx">node</span><span class="p">),</span><span class="w"> </span><span class="nx">path</span><span class="p">,</span>
+<span class="w">        </span><span class="s">&quot;org.freedesktop.DBus.Introspectable&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>This last function is a simple copy from the <code>prop.go</code> example of godbus
+(except createProps).</p>
+<h1>Final form</h1>
+<p>We can put the pieces together to have a simple dbus application:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">&quot;fmt&quot;</span>
+<span class="w">    </span><span class="s">&quot;os&quot;</span>
+
+<span class="w">    </span><span class="s">&quot;github.com/nyirog/configd&quot;</span>
+
+<span class="w">    </span><span class="s">&quot;github.com/godbus/dbus/v5&quot;</span>
+<span class="w">    </span><span class="s">&quot;github.com/godbus/dbus/v5/prop&quot;</span>
+<span class="p">)</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">Config</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">SomeInt</span><span class="w">    </span><span class="kt">int32</span>
+<span class="w">    </span><span class="nx">SomeString</span><span class="w"> </span><span class="kt">string</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">Config</span><span class="p">)</span><span class="w"> </span><span class="nx">Update</span><span class="p">(</span><span class="nx">change</span><span class="w"> </span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Change</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">dbus</span><span class="p">.</span><span class="nx">Error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">configd</span><span class="p">.</span><span class="nx">SetStructField</span><span class="p">(</span><span class="nx">config</span><span class="p">,</span><span class="w"> </span><span class="nx">change</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">Config</span><span class="p">)</span><span class="w"> </span><span class="nx">CreatePropertyMap</span><span class="p">()</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">configd</span><span class="p">.</span><span class="nx">CreateStructMap</span><span class="p">(</span><span class="nx">config</span><span class="p">)</span>
+<span class="p">}</span>
+
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">config</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">Config</span><span class="p">{</span><span class="nx">SomeInt</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nx">SomeString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;egg&quot;</span><span class="p">}</span>
+
+<span class="w">    </span><span class="nx">conn</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">dbus</span><span class="p">.</span><span class="nx">SessionBus</span><span class="p">()</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">panic</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">reply</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">conn</span><span class="p">.</span><span class="nx">RequestName</span><span class="p">(</span><span class="s">&quot;org.configd&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">dbus</span><span class="p">.</span><span class="nx">NameFlagDoNotQueue</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">panic</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">reply</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nx">dbus</span><span class="p">.</span><span class="nx">RequestNameReplyPrimaryOwner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;name already taken&quot;</span><span class="p">)</span>
+<span class="w">        </span><span class="nx">os</span><span class="p">.</span><span class="nx">Exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="nx">configd</span><span class="p">.</span><span class="nx">CreateNode</span><span class="p">(</span><span class="nx">conn</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;/config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;org.configd.Config&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">config</span><span class="p">)</span>
+
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&quot;Listening on org.configd /config ...&quot;</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Note:</strong> Our helper function are imported from the
+<a href="https://github.com/nyirog/configd">configd</a> package.</p>
+<h1>Validate our input</h1>
+<p>Since we have a standard go struct in our hands we can use the
+<a href="https://pkg.go.dev/gopkg.in/go-playground/validator.v9">validator</a> package to
+validate our user input:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="o">...</span>
+
+<span class="w">    </span><span class="s">&quot;gopkg.in/go-playground/validator.v9&quot;</span>
+<span class="p">)</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">Config</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">SomeInt</span><span class="w">    </span><span class="kt">int32</span><span class="w">  </span><span class="s">`validate:&quot;max=50&quot;`</span>
+<span class="w">    </span><span class="nx">SomeString</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`validate:&quot;len=3&quot;`</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">Config</span><span class="p">)</span><span class="w"> </span><span class="nx">Update</span><span class="p">(</span><span class="nx">change</span><span class="w"> </span><span class="o">*</span><span class="nx">prop</span><span class="p">.</span><span class="nx">Change</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">dbus</span><span class="p">.</span><span class="nx">Error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">configd</span><span class="p">.</span><span class="nx">SetStructField</span><span class="p">(</span><span class="nx">config</span><span class="p">,</span><span class="w"> </span><span class="nx">change</span><span class="p">)</span>
+
+<span class="w">    </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">validate</span><span class="p">.</span><span class="nx">Struct</span><span class="p">(</span><span class="nx">config</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">validationError</span><span class="p">(</span><span class="nx">err</span><span class="p">.(</span><span class="nx">validator</span><span class="p">.</span><span class="nx">ValidationErrors</span><span class="p">))</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&quot;Update&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">change</span><span class="p">.</span><span class="nx">Name</span><span class="p">,</span><span class="w"> </span><span class="nx">change</span><span class="p">.</span><span class="nx">Value</span><span class="p">)</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">Config</span><span class="p">)</span><span class="w"> </span><span class="nx">CreatePropertyMap</span><span class="p">()</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kd">interface</span><span class="p">{}</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">configd</span><span class="p">.</span><span class="nx">CreateStructMap</span><span class="p">(</span><span class="nx">config</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">validationError</span><span class="p">(</span><span class="nx">err</span><span class="w"> </span><span class="nx">validator</span><span class="p">.</span><span class="nx">ValidationErrors</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">dbus</span><span class="p">.</span><span class="nx">Error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">body</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="kd">interface</span><span class="p">{},</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">err</span><span class="p">))</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">e</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">body</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Sprintf</span><span class="p">(</span>
+<span class="w">            </span><span class="s">&quot;%s[%s=%s] &lt;&gt; %v&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">Field</span><span class="p">(),</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">Tag</span><span class="p">(),</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">Param</span><span class="p">(),</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">Value</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">dbus</span><span class="p">.</span><span class="nx">NewError</span><span class="p">(</span><span class="s">&quot;org.freedesktop.DBus.Properties.Error.ValidationErrors&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">body</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="kd">var</span><span class="w"> </span><span class="nx">validate</span><span class="w"> </span><span class="o">*</span><span class="nx">validator</span><span class="p">.</span><span class="nx">Validate</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">validate</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">validator</span><span class="p">.</span><span class="nx">New</span><span class="p">()</span>
+
+<span class="w">    </span><span class="o">...</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>You can find more example under the
+<a href="https://github.com/nyirog/configd/tree/main/_example">_example</a> directory of
+the <code>configd</code> package.</p>
+  <footer>
+    <p>Published: <time datetime="2021-02-05T19:42:00+01:00">
+      Fri 05 February 2021
+    </time></p>
+    <address>
+      By           <a href="https://nyirog.github.io/author/nyiro-gergo.html">Nyirő, Gergő</a>
+    </address>
+    <p>
+        Category: <a href="https://nyirog.github.io/category/dbus.html">dbus</a>
+    </p>
+    <p>
+        Tags:
+            <a href="https://nyirog.github.io/tag/dbus.html">dbus</a>
+            <a href="https://nyirog.github.io/tag/go.html">go</a>
+    </p>
+  </footer>
+  </article>
+        </main>
+        <footer>
+                <address>
+                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>,
+                which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                </address>
+        </footer>
+</body>
+</html>

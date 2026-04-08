@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+          <title>nyirog - Register dbus service</title>
+        <meta charset="utf-8" />
+        <meta name="generator" content="Pelican" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://nyirog.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="nyirog Full Atom Feed" />
+
+
+
+
+    <meta name="tags" content="dbus" />
+    <meta name="tags" content="systemd" />
+
+</head>
+
+<body>
+        <header>
+              <hgroup><h1><a href="https://nyirog.github.io/">nyirog</a></h1></hgroup>
+        <nav><ul>
+            <li><a href="https://nyirog.github.io/pages/projects.html" >Projects</a></li>
+            <li><a href="https://nyirog.github.io/category/dbus.html"  aria-current="page" >dbus</a></li>
+            <li><a href="https://nyirog.github.io/category/python.html" >Python</a></li>
+        </ul></nav>
+        </header>
+        <main>
+<article>
+  <header>
+    <h2>
+      <a href="https://nyirog.github.io/register-dbus-service.html" rel="bookmark"
+         title="Permalink to Register dbus service">Register dbus service</a></h2>
+ 
+  </header>
+  <p>The promise of dbus is to eliminate the need of an init system by starting
+the services on demand. In this guide we will walk through how to register
+a simple service on the system bus and manage it via systemd.</p>
+<p><strong>Remarks:</strong></p>
+<ul>
+<li>The guide assumes that <code>git</code> and <code>go</code> programs are already installed
+  on your machine.</li>
+<li>The well-known name of the dbus client will be referred as <code>bus name</code>.</li>
+</ul>
+<h1>Start a dbus service</h1>
+<p>We will use an example code from <a href="https://github.com/godbus/dbus">godbus</a> as a dbus service.</p>
+<div class="highlight"><pre><span></span><code>$ git clone https://github.com/godbus/dbus
+</code></pre></div>
+
+<p>We will use the latest release (<code>v5.0.3</code>) to avoid inconsistency:</p>
+<div class="highlight"><pre><span></span><code>$ cd dbus
+$ git checkout v5.0.3
+</code></pre></div>
+
+<p><code>go</code> programs can be executed with the <code>go run</code> command:</p>
+<div class="highlight"><pre><span></span><code>$ go run _examples/server.go 
+Listening on com.github.guelfey.Demo / /com/github/guelfey/Demo ...
+</code></pre></div>
+
+<p>Let see what <code>/com/github/guelfey/Demo</code> object can do:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=com.github.guelfey.Demo \
+  --type=method_call --print-reply \
+  /com/github/guelfey/Demo org.freedesktop.DBus.Introspectable.Introspect
+
+   string &quot;
+&lt;node&gt;
+    &lt;interface name=&quot;com.github.guelfey.Demo&quot;&gt;
+        &lt;method name=&quot;Foo&quot;&gt;
+            &lt;arg direction=&quot;out&quot; type=&quot;s&quot;/&gt;
+        &lt;/method&gt;
+    &lt;/interface&gt;
+    &lt;interface name=&quot;org.freedesktop.DBus.Introspectable&quot;&gt;
+        &lt;method name=&quot;Introspect&quot;&gt;
+            &lt;arg name=&quot;out&quot; direction=&quot;out&quot; type=&quot;s&quot;/&gt;
+        &lt;/method&gt;
+    &lt;/interface&gt;
+&lt;/node&gt; &quot;
+</code></pre></div>
+
+<p>We have a <code>Foo</code> method in the <code>com.github.guelfey.Demo</code> interface. Let see what
+<code>Foo</code> method does:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --session --dest=com.github.guelfey.Demo \
+  --type=method_call --print-reply \
+  /com/github/guelfey/Demo com.github.guelfey.Demo.Foo
+
+   string &quot;Bar!&quot;
+</code></pre></div>
+
+<p>Nice, but we used <code>session</code> bus all along. How about the <code>system</code> bus?</p>
+<h1>System bus</h1>
+<p>Change our example program to connect to the <code>system</code> bus:</p>
+<div class="highlight"><pre><span></span><code><span class="gh">diff --git a/_examples/server.go b/_examples/server.go</span>
+<span class="gh">index 0f4ee32..76d5151 100644</span>
+<span class="gd">--- a/_examples/server.go</span>
+<span class="gi">+++ b/_examples/server.go</span>
+<span class="gu">@@ -24,7 +24,7 @@ func (f foo) Foo() (string, *dbus.Error) {</span>
+<span class="w"> </span>}
+
+<span class="w"> </span>func main() {
+<span class="gd">-       conn, err := dbus.SessionBus()</span>
+<span class="gi">+       conn, err := dbus.SystemBus()</span>
+<span class="w"> </span>       if err != nil {
+<span class="w"> </span>               panic(err)
+<span class="w"> </span>       }
+</code></pre></div>
+
+<p>Start our service again:</p>
+<div class="highlight"><pre><span></span><code>$ go run _examples/server.go
+panic: Connection &quot;:1.102&quot; is not allowed to own the service &quot;com.github.guelfey.Demo&quot; due to security policies in the configuration file
+
+goroutine 1 [running]:
+main.main()
+    /home/nyirogergo/workspace/dbus/_examples/server.go:40 +0x238
+exit status 2
+</code></pre></div>
+
+<h2>System bus policy</h2>
+<p>Arbitrary dbus client cannot acquire names on <code>system</code> bus. We have to create a policy file
+to register the name of our server. Lucky for us the <code>Integrating system services</code> section
+of the <a href="https://dbus.freedesktop.org/doc/dbus-daemon.1.html">dbus-daemon documentation</a>
+defines a minimal policy file:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">&lt;!-- /usr/share/dbus-1/system.d/com.github.guelfey.Demo.conf --&gt;</span>
+<span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>
+<span class="cp">&lt;!DOCTYPE busconfig PUBLIC</span>
+<span class="cp"> &quot;-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN&quot;</span>
+<span class="cp"> &quot;http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd&quot;&gt;</span>
+<span class="nt">&lt;busconfig&gt;</span>
+<span class="w">  </span><span class="nt">&lt;policy</span><span class="w"> </span><span class="na">user=</span><span class="s">&quot;${USER}&quot;</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;allow</span><span class="w"> </span><span class="na">own=</span><span class="s">&quot;com.github.guelfey.Demo&quot;</span><span class="nt">/&gt;</span>
+<span class="w">  </span><span class="nt">&lt;/policy&gt;</span>
+
+<span class="w">  </span><span class="nt">&lt;policy</span><span class="w"> </span><span class="na">context=</span><span class="s">&quot;default&quot;</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;allow</span><span class="w"> </span><span class="na">send_destination=</span><span class="s">&quot;com.github.guelfey.Demo&quot;</span><span class="nt">/&gt;</span>
+<span class="w">  </span><span class="nt">&lt;/policy&gt;</span>
+<span class="nt">&lt;/busconfig&gt;</span>
+</code></pre></div>
+
+<p>The policy should be saved as
+<code>/usr/share/dbus-1/system.d/com.github.guelfey.Demo.conf</code> so the
+<code>com.github.guelfey.Demo</code> name will be available for <code>${USER}</code>. The <code>${USER}</code> has
+to be replaced with a local username which can be yours too. More details about
+the bus policy can be read in the <a href="https://dbus.freedesktop.org/doc/dbus-daemon.1.html">dbus-daemon</a> and <a href="https://www.freedesktop.org/software/polkit/docs/latest/polkit.8.html">polkit</a> documentations.</p>
+<p><strong>Remark:</strong> The <code>/usr/share/dbus-1/system.d</code> directory does not refer to systemd, this
+directory only contains the policies of the <code>system</code> bus configuration
+(<code>/usr/share/dbus-1/system.conf</code>).</p>
+<p>We can start our example server again:</p>
+<div class="highlight"><pre><span></span><code>$ go run _examples/server.go
+Listening on com.github.guelfey.Demo / /com/github/guelfey/Demo ...
+</code></pre></div>
+
+<p>The <code>Foo</code> method is available on the <code>system</code> bus:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>dbus-send<span class="w"> </span>--system<span class="w"> </span>--dest<span class="o">=</span>com.github.guelfey.Demo<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--type<span class="o">=</span>method_call<span class="w"> </span>--print-reply<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>/com/github/guelfey/Demo<span class="w"> </span>com.github.guelfey.Demo.Foo
+
+<span class="w">   </span>string<span class="w"> </span><span class="s2">&quot;Bar!&quot;</span>
+</code></pre></div>
+
+<h1>Dbus service</h1>
+<p>Until now we could not refer our example server as dbus service because we
+started it by hand. However it is quite straightforward to register our server
+into dbus.</p>
+<p>At first we compile our example server so it can be referred more easily:</p>
+<div class="highlight"><pre><span></span><code>$ go build -o /tmp/dbus-demo-server _example/server.go
+</code></pre></div>
+
+<h2>Register service</h2>
+<p>The <code>dbus-daemon</code> scan the <code>/usr/share/dbus-1/system-services</code> for <code>system</code> services.
+We should create a simple service file there. The service file has to be
+named after bus name of the service.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># /usr/share/dbus-1/system-services/com.github.guelfey.Demo.service</span>
+
+<span class="k">[D-BUS Service]</span>
+<span class="na">Name</span><span class="o">=</span><span class="s">com.github.guelfey.Demo</span>
+<span class="na">User</span><span class="o">=</span><span class="s">${USER}</span>
+<span class="na">Exec</span><span class="o">=</span><span class="s">/tmp/dbus-demo-server</span>
+</code></pre></div>
+
+<p><strong>Remark:</strong> <code>${USER}</code> should be replaced with username which is used in the policy file.</p>
+<h2>List activate able services</h2>
+<p>We can check our service configuration by the <code>ListActivatableNames</code> method:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --system --dest=org.freedesktop.DBus \
+  --type=method_call --print-reply \
+  /org/freedektop/DBus org.freedesktop.DBus.ListActivatableNames
+
+   array [
+      string &quot;org.freedesktop.DBus&quot;
+      string &quot;org.freedesktop.login1&quot;
+      ...
+      string &quot;com.github.guelfey.Demo&quot;
+   ]
+</code></pre></div>
+
+<p>It seems alright, let call our famous <code>Foo</code> method:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --system --dest=com.github.guelfey.Demo \
+  --type=method_call --print-reply \
+  /com/github/guelfey/Demo com.github.guelfey.Demo.Foo
+
+   string &quot;Bar!&quot;
+</code></pre></div>
+
+<h2>Manage dbus services</h2>
+<p>It is quite easy, but how can I stop or restart our service?</p>
+<p>Dbus services are regular processes so we only have to know their PIDs, which
+can be queried with the <code>GetConnectionUnixProcessID</code> method:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --system --dest=org.freedesktop.DBus \
+  --type=method_call --print-reply \
+  /org/freedektop/DBus org.freedesktop.DBus.GetConnectionUnixProcessID \
+  string:&#39;com.github.guelfey.Demo&#39;
+
+   uint32 7909
+</code></pre></div>
+
+<p>We can stop our example service with a <code>SIGINT</code> signal:</p>
+<div class="highlight"><pre><span></span><code>$ kill -SIGINT 7909
+</code></pre></div>
+
+<p>We can ensure that our example service is stopped:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --system --dest=org.freedesktop.DBus \
+  --type=method_call --print-reply \
+  /org/freedektop/DBus org.freedesktop.DBus.GetConnectionUnixProcessID \
+  string:&#39;com.github.guelfey.Demo&#39;
+
+Error org.freedesktop.DBus.Error.NameHasNoOwner: Could not get PID of name &#39;com.github.guelfey.Demo&#39;: no such name
+</code></pre></div>
+
+<h1>Systemd service</h1>
+<p>The <code>GetConnectionUnixProcessID</code> exposes the process of the dbus service but it
+is not an administrator friendly way to manage services. Lucky for us dbus
+services can be managed with systemd so we don't have to query their PIDs.</p>
+<h2>Register service</h2>
+<p>Only a <code>SystemdService</code> option has to be set in the dbus service file to ask
+<code>dbus-daemon</code> to start our service with systemd:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># /usr/share/dbus-1/system-services/com.github.guelfey.Demo.service</span>
+
+<span class="k">[D-BUS Service]</span>
+<span class="na">Name</span><span class="o">=</span><span class="s">com.github.guelfey.Demo</span>
+<span class="na">Exec</span><span class="o">=</span><span class="s">/bin/false</span>
+<span class="na">SystemdService</span><span class="o">=</span><span class="s">dbus-demo</span>
+</code></pre></div>
+
+<p>As you can see from the dbus service file above the <code>User</code> option is left to
+systemd and the <code>Exec</code> option is overwritten with <code>/bin/false</code> so the <code>Exec</code>
+would fail if there is no <code>SystemdService</code>.</p>
+<p>The systemd service file of the referred <code>dbus-demo</code> service should look like this:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># /usr/lib/systemd/system/dbus-demo.service</span>
+
+<span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">Simple dbus server example</span>
+<span class="k">[Service]</span>
+<span class="na">Type</span><span class="o">=</span><span class="s">dbus</span>
+<span class="na">BusName</span><span class="o">=</span><span class="s">com.github.guelfey.Demo</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">/tmp/dbus-demo-server</span>
+<span class="na">User</span><span class="o">=</span><span class="s">${USER}</span>
+</code></pre></div>
+
+<p>This systemd service above will start <code>/tmp/dbus-demo-server</code> at the first dbus
+message as <code>${USER}</code> (you have to replace it with a real username). Systemd use
+the <code>BusName</code> option in the status check of our example server. Systemd
+consider the service active if the started process acquires the
+<code>com.github.guelfey.Demo</code> <code>BusName</code>.</p>
+<p>Finally a <code>daemon-reload</code> command has to be called to register our systemd service:</p>
+<div class="highlight"><pre><span></span><code>$ sudo systemctl daemon-reload
+</code></pre></div>
+
+<p>At this stage our systemd service is inactive:</p>
+<div class="highlight"><pre><span></span><code>$ systemctl status dbus-demo
+● dbus-demo.service - Simple dbus server example
+     Loaded: loaded (/usr/lib/systemd/system/dbus-demo.service; disabled; vendor preset: disabled)
+     Active: inactive (dead)
+</code></pre></div>
+
+<p>It will be activated by the first dbus message:</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --system --dest=com.github.guelfey.Demo \
+  --type=method_call --print-reply \
+  /com/github/guelfey/Demo com.github.guelfey.Demo.Foo
+
+   string &quot;Bar!&quot;
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>$ systemctl status dbus-demo
+● dbus-demo.service - Simple dbus server example
+     Loaded: loaded (/usr/lib/systemd/system/dbus-demo.service; disabled; vendor preset: disabled)
+     Active: active (running) since Sun 2021-01-10 16:44:42 CET; 12s ago
+   Main PID: 8500 (dbus-demo-serve)
+      Tasks: 6 (limit: 38345)
+     Memory: 1.2M
+     CGroup: /system.slice/dbus-demo.service
+             └─8500 /usr/bin/dbus-demo-server
+</code></pre></div>
+
+<p>We can check that <code>systemd</code> and <code>dbus-daemon</code> use the same process (PID=8500):</p>
+<div class="highlight"><pre><span></span><code>$ dbus-send --system --dest=org.freedesktop.DBus \
+  --type=method_call --print-reply \
+  /org/freedektop/DBus org.freedesktop.DBus.GetConnectionUnixProcessID \
+  string:&#39;com.github.guelfey.Demo&#39;
+
+   uint32 8500
+</code></pre></div>
+
+<h1>Epilogue</h1>
+<p>You have to remember that neither <code>dbus-daemon</code> or <code>systemd</code> acquire bus name for your
+server. The bus name has to be acquired by your server.</p>
+<p>We did not use any policy for our example server, but authorization is key
+point of dbus services. You should use <a href="https://www.freedesktop.org/software/polkit/docs/latest/polkit.8.html">polkit</a> or a proper bus policy for your
+dbus services.</p>
+  <footer>
+    <p>Published: <time datetime="2021-01-10T19:12:00+01:00">
+      Sun 10 January 2021
+    </time></p>
+    <address>
+      By           <a href="https://nyirog.github.io/author/nyiro-gergo.html">Nyirő, Gergő</a>
+    </address>
+    <p>
+        Category: <a href="https://nyirog.github.io/category/dbus.html">dbus</a>
+    </p>
+    <p>
+        Tags:
+            <a href="https://nyirog.github.io/tag/dbus.html">dbus</a>
+            <a href="https://nyirog.github.io/tag/systemd.html">systemd</a>
+    </p>
+  </footer>
+  </article>
+        </main>
+        <footer>
+                <address>
+                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>,
+                which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                </address>
+        </footer>
+</body>
+</html>
